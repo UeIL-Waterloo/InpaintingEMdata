@@ -29,7 +29,7 @@ from sparsity import *
 # INPAINT_NS = Use Navier-Stokes based method
 # INPAINT_TELEA = Use the algorithm proposed by Alexandru Telea [209]
 
-path = 'Images/test_image.tif'
+path = 'Images/test_image.png'
 
 img = cv2.imread(path)
 img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
@@ -38,34 +38,37 @@ img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 # img = cv2.resize(img, (100,100))
 
 # Nonzero pixels are to be inpainted with opencv/ white are inpainted.
-# percentInpainted = 80
-# a = randomSparsity.getRandomMask(img, fracPixels=percentInpainted)
-a, percentInpainted = spiralSparsity.CLVmask(img)
-a = 1-a
+percentInpainted = 80
+a = randomSparsity.getRandomMask(img, fracPixels=percentInpainted)
+# a, percentInpainted = spiralSparsity.CLVmask(img)
+# a = 1-a
 
 masked = img * (1-a)
 
 # Produce random code in name to label datasets.
-name = 'Images/Liposome_spiral' + str(random.randint(0,1000)) + '_'
+name = 'Images/Liposome_random' + str(random.randint(0,1000)) + '_'
 
 plt.imshow(img, cmap='Greys_r', interpolation='nearest')
 plt.axis('off')
-plt.savefig(name+'originalImage.png', dpi=300, bbox_inches='tight', pad_inches=0)
 plt.show()
+cv2.imwrite(name+'originalImage.png', img)
+
 
 plt.imshow(masked, cmap='Greys_r', interpolation='nearest')
 plt.axis('off')
-plt.savefig(name+'mask'+str(percentInpainted)+'.png', dpi=300, bbox_inches='tight', pad_inches=0)
 plt.show()
+cv2.imwrite(name+'mask'+str(percentInpainted)+'.png', masked)
+
 
 dst = cv2.inpaint(img,a,1,cv2.INPAINT_TELEA)
 plt.axis('off')
 plt.imshow(dst, cmap='Greys_r', interpolation='nearest')
-plt.savefig(name+'imageInpainted'+str(percentInpainted)+'.png', dpi=300, bbox_inches='tight', pad_inches=0)
 plt.show()
+cv2.imwrite(name+'imageInpainted'+str(percentInpainted)+'.png', dst)
+
 
 dst = cv2.inpaint(masked,a,1,cv2.INPAINT_TELEA)
 plt.axis('off')
 plt.imshow(dst, cmap='Greys_r', interpolation='nearest')
-plt.savefig(name+'maskInpainted'+str(percentInpainted)+'.png', dpi=300, bbox_inches='tight', pad_inches=0)
 plt.show()
+cv2.imwrite(name+'maskInpainted'+str(percentInpainted)+'.png', dst)
