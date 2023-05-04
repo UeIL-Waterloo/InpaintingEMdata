@@ -25,6 +25,28 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
+def showInpainting(img, mask, image_defect, image_result):
+    fig, axes = plt.subplots(ncols=2, nrows=2)
+    ax = axes.ravel()
+
+    ax[0].set_title('Original image')
+    ax[0].imshow(img, cmap=plt.cm.gray)
+
+    ax[1].set_title('Mask')
+    ax[1].imshow(mask, cmap=plt.cm.gray)
+
+    ax[2].set_title('Defected image')
+    ax[2].imshow(image_defect, cmap=plt.cm.gray)
+
+    ax[3].set_title('Inpainted image')
+    ax[3].imshow(image_result, cmap=plt.cm.gray)
+
+    for a in ax:
+        a.axis('off')
+
+    fig.tight_layout()
+    plt.show()
+
 def checkYXduplicates(x,y):
     test = {}
     duplicates = 0
@@ -81,21 +103,23 @@ class randomSparsity:
             if pixel not in flaggedPixels.keys():
                 flaggedPixels[pixel] = 1
 
-        # Check if it is working.
-        # for i in range(0,Xpixelrange * 50):
-        #     flaggedPixels[i] = 1
-
-        # Delinearise pixels into coordinates.
-        # x = pixel // Ypixelrange
-        # y = pixel - (x * Xpixelrange)
-        return [(pixel // Ypixelrange, pixel - (pixel // Ypixelrange * Xpixelrange)) for pixel in flaggedPixels]
+        out = [(pixel // Ypixelrange, pixel - (pixel // Ypixelrange * Xpixelrange)) for pixel in flaggedPixels]
+        return out
 
     @staticmethod
-    def getRandomMask(img, fracPixels):
-        mask = np.zeros(img.shape, dtype=np.uint8)
-        pixelList = randomSparsity.flagRandomPixelsforInpainting(img, fracPixels)
-        for (x,y) in pixelList:
-            mask[x,y] = 1
+    def getRandomMask(img, fracPixels, format='algorithm'):
+        if format == 'algorithm':
+            mask = np.zeros(img.shape, dtype=np.uint8) # cv2 requires same dim array.
+            pixelList = randomSparsity.flagRandomPixelsforInpainting(img, fracPixels)
+            for (x, y) in pixelList:
+                mask[x, y] = 1
+        elif format == 'dictlearn':
+            mask = np.zeros(img.shape[:-1], dtype=bool)
+            pixelList = randomSparsity.flagRandomPixelsforInpainting(img, fracPixels)
+            for (x, y) in pixelList:
+                mask[x, y] = True
+        else:
+            sys.exit("Provide a valid format to getRandomMask.")
         print("Mask made successfully!")
         return mask
 
@@ -122,8 +146,11 @@ class spiralSparsity:
         return x, y
 
     @staticmethod
-    def CLVmask(img, frequency = 1.16):
-        width, height = img.shape
+    def CLVmask(img, frequency = 1.16, format='algorithm'):
+        if format == 'algorithm':
+            width, height = img.shape
+        if format == 'dictlearn':
+            width, height = img.shape[:-1]
         # Crop image if the width and height are not equal.
         if width != height:
             print("Image width and height are not equal, cropping in top left to largest square.")
@@ -141,11 +168,8 @@ class spiralSparsity:
         # i.e. dose on the sample is linear but measurements are not even across all detector points.
         x,y = spiralSparsity.CLV(frequency=frequency, totalPoints=t)
 
-        # print('total points: '+str(len(x)))
-        # print('dose: ' + str(len(x)/circleArea*100) + '%')
         unique_points, duplicate_points = checkYXduplicates(x, y)
-        inpainted = round(100 - unique_points/circleArea*100)
-        # print('inpainted: ' + str(inpainted) + '%')
+        percent_inpainted = round(100 - unique_points/circleArea*100)
         # TODO scans should not have gaps in path, update for more representative result.
 
         def shift(l, shiftval):
@@ -153,34 +177,19 @@ class spiralSparsity:
         shiftx = shift(x, width//2)
         shifty = shift(y, width//2)
 
-        # plt.plot(y,x)
-        # plt.plot(shifty, shiftx)
-        # plt.show()
-        # plt.plot(range(len(x)), x, 'b')
-        # plt.plot(range(len(y)), y, 'r')
-        # plt.show()
+        if format == 'algorithm':
+            mask = np.zeros(img.shape, dtype=np.uint8) # cv2 requires same dim array.
+            for i in range(len(shiftx)):
+                mask[shiftx[i], shifty[i]] = 1
+            mask = 1 - mask
+        elif format == 'dictlearn':
+            mask = np.ones(img.shape[:-1], dtype=bool)
+            for i in range(len(shiftx)):
+                mask[shiftx[i]][shifty[i]] = False
 
-        mask = np.zeros(img.shape, dtype=np.uint8)
-        for i in range(len(shiftx)):
-            mask[shiftx[i], shifty[i]] = 1
+        else:
+            sys.exit("Provide a valid format to getRandomMask.")
+
         print("Mask made successfully!")
 
-        plt.imshow(mask, cmap='Greys_r', interpolation='nearest')
-        plt.axis('off')
-        plt.show()
-
-        return mask, inpainted
-
-
-# path = 'Images/test_image.tif'
-#
-# img = cv2.imread(path)
-# img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
-# # img = cropImage(img, 0,0,int(img.shape[0]*0.5), img.shape[0])
-# img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-#
-# # plt.imshow(img, cmap='Greys_r', interpolation='nearest')
-# # plt.axis('off')
-# # plt.show()
-#
-# spiralSparsity.CLVmask(img, 10)
+        return mask, percent_inpainted

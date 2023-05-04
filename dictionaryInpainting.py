@@ -21,22 +21,41 @@
 # SOFTWARE.
 
 import sys
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import dictlearn as dl
+from skimage.restoration import inpaint
+from sparsity import *
 
 
-inpainter = dl.Inpaint('Images/test_image.tif', 'Images/test_mask_50.png')
-inpainted_image = inpainter.train().inpaint()
+class dictionaryLearn:
+    def __init__(self, img, percentInpaint):
+        self.img = img
+        self.percentInpaint = percentInpaint
 
-plt.subplot(121)
-plt.imshow(inpainter.patches.image)
-plt.title('Original')
+    def randomDictLearn(self, show=True):
+        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='dictlearn')
+        image_defect = self.img * ~mask[..., np.newaxis]
+        image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
+        if show == True:
+            showInpainting(self.img, mask, image_defect, image_result)
 
-plt.subplot(122)
-plt.imshow(inpainted_image)
-plt.title('Inpainted')
+        return image_result
 
-plt.show()
+    def sprialDictLearn(self, show=True):
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='dictlearn')
+        image_defect = self.img * np.invert(mask)[..., np.newaxis]
+        image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
+        if show == True:
+            showInpainting(self.img, mask, image_defect, image_result)
+
+        return image_result
+
+path = 'Images/test_image.png'
+
+img = cv2.imread(path)
+img = cv2.resize(img, (int(img.shape[0] * 0.1), int(img.shape[1] * 0.1)))
+
+dictionaryLearn(img, percentInpaint=50).randomDictLearn()
+dictionaryLearn(img, percentInpaint=50).sprialDictLearn()
+
