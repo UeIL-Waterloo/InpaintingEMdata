@@ -25,7 +25,7 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
-def showInpainting(img, mask, image_defect, image_result):
+def showInpainting(img, mask, image_defect, image_result, name='0'):
     fig, axes = plt.subplots(ncols=2, nrows=2)
     ax = axes.ravel()
 
@@ -45,6 +45,8 @@ def showInpainting(img, mask, image_defect, image_result):
         a.axis('off')
 
     fig.tight_layout()
+    if name != '0':
+        plt.savefig('Images/' + str(name) + '.png', dpi=300, bbox_inches='tight', pad_inches=0)
     plt.show()
 
 def checkYXduplicates(x,y):
@@ -113,7 +115,7 @@ class randomSparsity:
             pixelList = randomSparsity.flagRandomPixelsforInpainting(img, fracPixels)
             for (x, y) in pixelList:
                 mask[x, y] = 1
-        elif format == 'dictlearn':
+        elif format == 'biharmonic':
             mask = np.zeros(img.shape[:-1], dtype=bool)
             pixelList = randomSparsity.flagRandomPixelsforInpainting(img, fracPixels)
             for (x, y) in pixelList:
@@ -149,7 +151,7 @@ class spiralSparsity:
     def CLVmask(img, frequency = 1.16, format='algorithm'):
         if format == 'algorithm':
             width, height = img.shape
-        if format == 'dictlearn':
+        if format == 'biharmonic':
             width, height = img.shape[:-1]
         # Crop image if the width and height are not equal.
         if width != height:
@@ -182,7 +184,7 @@ class spiralSparsity:
             for i in range(len(shiftx)):
                 mask[shiftx[i], shifty[i]] = 1
             mask = 1 - mask
-        elif format == 'dictlearn':
+        elif format == 'biharmonic':
             mask = np.ones(img.shape[:-1], dtype=bool)
             for i in range(len(shiftx)):
                 mask[shiftx[i]][shifty[i]] = False

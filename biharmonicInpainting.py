@@ -28,34 +28,34 @@ from skimage.restoration import inpaint
 from sparsity import *
 
 
-class dictionaryLearn:
+class Biharmonic:
     def __init__(self, img, percentInpaint):
         self.img = img
         self.percentInpaint = percentInpaint
 
-    def randomDictLearn(self, show=True):
-        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='dictlearn')
+    def randomBiharmonic(self, show=True):
+        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='biharmonic')
         image_defect = self.img * ~mask[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
-        if show == True:
-            showInpainting(self.img, mask, image_defect, image_result)
+        if show:
+            showInpainting(self.img, mask, image_defect, image_result, name='random_biharmonic')
 
         return image_result
 
-    def sprialDictLearn(self, show=True):
-        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='dictlearn')
+    def sprialBiharmonic(self, show=True):
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='biharmonic')
         image_defect = self.img * np.invert(mask)[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
-        if show == True:
-            showInpainting(self.img, mask, image_defect, image_result)
+        if show:
+            showInpainting(self.img, mask, image_defect, image_result, name='spiral_biharmonic')
 
         return image_result
 
 path = 'Images/test_image.png'
 
 img = cv2.imread(path)
-img = cv2.resize(img, (int(img.shape[0] * 0.1), int(img.shape[1] * 0.1)))
+img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
 
-dictionaryLearn(img, percentInpaint=50).randomDictLearn()
-dictionaryLearn(img, percentInpaint=50).sprialDictLearn()
+Biharmonic(img, percentInpaint=50).randomBiharmonic()
+Biharmonic(img, percentInpaint=50).sprialBiharmonic()
 
