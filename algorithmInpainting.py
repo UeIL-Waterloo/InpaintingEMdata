@@ -42,8 +42,8 @@ class algorithmInpaint:
         image_defect = self.img * (1 - mask)
         image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
 
-        if show == True:
-            showInpainting(self.img, mask, image_defect, image_result)
+        if show:
+            showInpainting(self.img, mask, image_defect, image_result, name='random_algorithm')
 
         return image_result
 
@@ -52,8 +52,8 @@ class algorithmInpaint:
         image_defect = self.img * (1 - mask)
         image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
 
-        if show == True:
-            showInpainting(self.img, mask, image_defect, image_result)
+        if show:
+            showInpainting(self.img, mask, image_defect, image_result, name='spiral_algorithm')
 
         return image_result
 
