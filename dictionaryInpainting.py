@@ -19,50 +19,43 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 import sys
-
-import matplotlib.pyplot as plt
-import cv2
-import random
-
 import numpy as np
-
+import cv2
+import matplotlib.pyplot as plt
+from skimage.restoration import inpaint
 from sparsity import *
 
-# INPAINT_NS = Use Navier-Stokes based method
-# INPAINT_TELEA = Use the algorithm proposed by Alexandru Telea [209]
 
-class algorithmInpaint:
+class dictionaryLearn:
     def __init__(self, img, percentInpaint):
         self.img = img
         self.percentInpaint = percentInpaint
 
-    def randomAlgorithmInpaint(self, show=True):
-        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='algorithm')
-        image_defect = self.img * (1 - mask)
-        image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
-
+    def randomDictLearn(self, show=True):
+        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='dictlearn')
+        image_defect = self.img * ~mask[..., np.newaxis]
+        image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
         if show == True:
             showInpainting(self.img, mask, image_defect, image_result)
 
         return image_result
 
-    def sprialAlgorithmInpaint(self, show=True):
-        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='algorithm')
-        image_defect = self.img * (1 - mask)
-        image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
-
+    def sprialDictLearn(self, show=True):
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='dictlearn')
+        image_defect = self.img * np.invert(mask)[..., np.newaxis]
+        image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
         if show == True:
             showInpainting(self.img, mask, image_defect, image_result)
 
         return image_result
-
 
 path = 'Images/test_image.png'
 
 img = cv2.imread(path)
-img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
-img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img = cv2.resize(img, (int(img.shape[0] * 0.1), int(img.shape[1] * 0.1)))
 
-algorithmInpaint(img, percentInpaint=50).randomAlgorithmInpaint()
-algorithmInpaint(img, percentInpaint=50).sprialAlgorithmInpaint()
+dictionaryLearn(img, percentInpaint=50).randomDictLearn()
+dictionaryLearn(img, percentInpaint=50).sprialDictLearn()
+
