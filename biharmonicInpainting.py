@@ -33,8 +33,9 @@ class Biharmonic:
         self.img = img
         self.percentInpaint = percentInpaint
 
-    def randomBiharmonic(self, show=True):
-        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='biharmonic')
+    def randomInpaint(self, mask=None, show=True):
+        if not mask:
+            mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='biharmonic')
         image_defect = self.img * ~mask[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
         if show:
@@ -42,20 +43,11 @@ class Biharmonic:
 
         return image_result
 
-    def sprialBiharmonic(self, show=True):
+    def spiralInpaint(self, show=True):
         mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='biharmonic')
         image_defect = self.img * np.invert(mask)[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
         if show:
-            showInpainting(self.img, mask, image_defect, image_result, name='spiral_biharmonic')
+            showInpainting(circleMaskImage(self.img), mask, image_defect, circleMaskImage(image_result), name='spiral_biharmonic')
 
         return image_result
-
-path = 'Images/test_image.png'
-
-img = cv2.imread(path)
-img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
-
-Biharmonic(img, percentInpaint=50).randomBiharmonic()
-Biharmonic(img, percentInpaint=50).sprialBiharmonic()
-

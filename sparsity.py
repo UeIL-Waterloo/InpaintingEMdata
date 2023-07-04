@@ -25,6 +25,14 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
+
+def circleMaskImage(image):
+    blank = np.zeros(image.shape)
+    circled = cv2.circle(blank, (blank.shape[0] // 2, blank.shape[1] // 2), blank.shape[0] // 2, color=(255, 255, 255),
+                     thickness=-1)
+    binary = np.array(circled / circled.max(), dtype=np.uint8)
+    return image * binary
+
 def showInpainting(img, mask, image_defect, image_result, name='0'):
     fig, axes = plt.subplots(ncols=2, nrows=2)
     ax = axes.ravel()
@@ -60,9 +68,9 @@ def checkYXduplicates(x,y):
                 test[x[i]].append(y[i])
         else:
             test[x[i]] = [y[i]]
-    print('duplicates: ' + str(duplicates))
+    # print('duplicates: ' + str(duplicates))
     unique_points = sum(len(v) for v in test.values())
-    print('number of unique points: ' + str(unique_points))
+    # print('number of unique points: ' + str(unique_points))
     return unique_points, duplicates
 
 def checkXYtupDuplicates(x,y):
@@ -97,13 +105,17 @@ class randomSparsity:
         Ypixelrange = img.shape[1]
         totPixels = Xpixelrange * Ypixelrange
         numPixels = int(totPixels * fracPixels/100.0)
-        flaggedPixels = {}
+
+        allPixels = np.arange(totPixels)
+        np.random.shuffle(allPixels)
+        flaggedPixels = allPixels[:numPixels]
 
         # Create dict of linearised pixels selected for = 1.
-        while len(flaggedPixels) < numPixels:
-            pixel = np.random.randint(0, totPixels)
-            if pixel not in flaggedPixels.keys():
-                flaggedPixels[pixel] = 1
+        # flaggedPixels = {}
+        #while len(flaggedPixels) < numPixels:
+        #    pixel = np.random.randint(0, totPixels)
+        #    if pixel not in flaggedPixels.keys():
+        #        flaggedPixels[pixel] = 1
 
         out = [(pixel // Ypixelrange, pixel - (pixel // Ypixelrange * Xpixelrange)) for pixel in flaggedPixels]
         return out
@@ -122,7 +134,7 @@ class randomSparsity:
                 mask[x, y] = True
         else:
             sys.exit("Provide a valid format to getRandomMask.")
-        print("Mask made successfully!")
+        # print("Mask made successfully!")
         return mask
 
 class spiralSparsity:
@@ -137,15 +149,21 @@ class spiralSparsity:
         return x, y
 
     @staticmethod
-    def CLV(frequency, totalPoints):
-        x = []
-        y = []
-        for i in range(0, totalPoints):
-            xval = int(math.sqrt(i) * math.cos(frequency * math.sqrt(i)))
-            yval = int(math.sqrt(i) * math.sin(frequency * math.sqrt(i)))
-            x.append(xval)
-            y.append(yval)
-        return x, y
+    def CLV(frequency, width, height, maskType, totalPoints, shiftAmount):
+        # x = np.zeroes(totalPoints)
+        # y = np.zeroes(totalPoints)
+        # for i in range(0, totalPoints):
+        #     sq = np.sqrt(i)
+        #     x[i] = int(sq * np.cos(frequency * sq))
+        #     y[i] = int(sq * np.sin(frequency * sq))
+        # return x, y
+        mask = np.ones((width, height),  dtype=maskType)
+        for i in range(totalPoints):
+            sq = np.sqrt(i)
+            x = int(sq * np.cos(frequency * sq)) + shiftAmount
+            y = int(sq * np.sin(frequency * sq)) + shiftAmount
+            mask[x][y] = 0
+        return mask
 
     @staticmethod
     def CLVmask(img, frequency = 1.16, format='algorithm'):
@@ -155,6 +173,7 @@ class spiralSparsity:
             width, height = img.shape[:-1]
         # Crop image if the width and height are not equal.
         if width != height:
+            assert(False)
             print("Image width and height are not equal, cropping in top left to largest square.")
             length = min(width, height)
             img = cropImage(img, 0, 0, length, length)
@@ -168,30 +187,19 @@ class spiralSparsity:
         # Dose will be measured as a fraction of the total pixel points.
         # Though some pixels are sampled more than once, the dose should be evenly distributed throughout the sample.
         # i.e. dose on the sample is linear but measurements are not even across all detector points.
-        x,y = spiralSparsity.CLV(frequency=frequency, totalPoints=t)
+        mask = spiralSparsity.CLV(frequency=frequency, width = width, height = height, maskType= np.uint8 if format == 'algorithm' else bool, totalPoints=t, shiftAmount= width // 2)
 
-        unique_points, duplicate_points = checkYXduplicates(x, y)
-        percent_inpainted = round(100 - unique_points/circleArea*100)
+       # unique_points, duplicate_points = checkYXduplicates(x, y)
+        percent_inpainted = None #round(100 - unique_points/circleArea*100)
         # TODO scans should not have gaps in path, update for more representative result.
 
-        def shift(l, shiftval):
-            return [i+shiftval for i in l]
-        shiftx = shift(x, width//2)
-        shifty = shift(y, width//2)
+        # if format == 'algorithm':
+        #     mask = np.ones(img.shape, dtype=np.uint8) * mask # cv2 requires same dim array.
+        # elif format == 'biharmonic':
+        #     mask = np.ones(img.shape, dtype=bool) * mask
+        # else:
+        #     sys.exit("Provide a valid format to getRandomMask.")
 
-        if format == 'algorithm':
-            mask = np.zeros(img.shape, dtype=np.uint8) # cv2 requires same dim array.
-            for i in range(len(shiftx)):
-                mask[shiftx[i], shifty[i]] = 1
-            mask = 1 - mask
-        elif format == 'biharmonic':
-            mask = np.ones(img.shape[:-1], dtype=bool)
-            for i in range(len(shiftx)):
-                mask[shiftx[i]][shifty[i]] = False
-
-        else:
-            sys.exit("Provide a valid format to getRandomMask.")
-
-        print("Mask made successfully!")
+        # print("Mask made successfully!")
 
         return mask, percent_inpainted
