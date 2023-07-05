@@ -32,37 +32,32 @@ from sparsity import *
 # INPAINT_NS = Use Navier-Stokes based method
 # INPAINT_TELEA = Use the algorithm proposed by Alexandru Telea [209]
 
-class algorithmInpaint:
-    def __init__(self, img, percentInpaint):
+class Algorithm:
+    def __init__(self, img, percentInpaint, imgName):
         self.img = img
         self.percentInpaint = percentInpaint
+        self.imgName = imgName
 
-    def randomAlgorithmInpaint(self, show=True):
+    def randomInpaint(self, show=True):
         mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='algorithm')
         image_defect = self.img * (1 - mask)
         image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
+
+        saveAllFigs(self.imgName + '_algorithm_random_' + str(self.percentInpaint), self.img, mask, image_defect, image_result)
 
         if show:
             showInpainting(self.img, mask, image_defect, image_result, name='random_algorithm')
 
         return image_result
 
-    def sprialAlgorithmInpaint(self, show=True):
-        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='algorithm')
+    def spiralInpaint(self, show=True):
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, percentInpaint=self.percentInpaint,  format='algorithm')
         image_defect = self.img * (1 - mask)
         image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
 
+        saveAllFigs(self.imgName + '_algorithm_spiral_' + str(self.percentInpaint), self.img, mask, image_defect, image_result)
+
         if show:
-            showInpainting(self.img, mask, image_defect, image_result, name='spiral_algorithm')
+            showInpainting(self.img, mask, image_defect, circleMaskImage(image_result), name='spiral_algorithm')
 
         return image_result
-
-
-path = 'Images/test_image.png'
-
-img = cv2.imread(path)
-img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
-img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-algorithmInpaint(img, percentInpaint=50).randomAlgorithmInpaint()
-algorithmInpaint(img, percentInpaint=50).sprialAlgorithmInpaint()

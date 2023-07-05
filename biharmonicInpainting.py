@@ -26,36 +26,39 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.restoration import inpaint
 from sparsity import *
-
+from skimage import img_as_ubyte
 
 class Biharmonic:
-    def __init__(self, img, percentInpaint):
+    def __init__(self, img, percentInpaint, imgName):
         self.img = img
         self.percentInpaint = percentInpaint
+        self.imgName = imgName
 
-    def randomBiharmonic(self, show=True):
+
+    def randomInpaint(self, show=True):
         mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='biharmonic')
         image_defect = self.img * ~mask[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
+
+        image_resultgray = img_as_ubyte(image_result)
+
+        saveAllFigs(self.imgName + '_biharmonic_random_' + str(self.percentInpaint), self.img, mask, image_defect, image_resultgray)
+
         if show:
             showInpainting(self.img, mask, image_defect, image_result, name='random_biharmonic')
 
         return image_result
 
-    def sprialBiharmonic(self, show=True):
-        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='biharmonic')
+    def spiralInpaint(self, show=True):
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, percentInpaint=self.percentInpaint, format='biharmonic')
         image_defect = self.img * np.invert(mask)[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
+
+        image_resultgray = img_as_ubyte(image_result)
+
+        saveAllFigs(self.imgName + '_biharmonic_spiral_' + str(self.percentInpaint), self.img, mask, image_defect, image_resultgray)
+
         if show:
-            showInpainting(self.img, mask, image_defect, image_result, name='spiral_biharmonic')
+            showInpainting(self.img, mask, image_defect, circleMaskImage(image_result), name='spiral_biharmonic')
 
         return image_result
-
-path = 'Images/test_image.png'
-
-img = cv2.imread(path)
-img = cv2.resize(img, (int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)))
-
-Biharmonic(img, percentInpaint=50).randomBiharmonic()
-Biharmonic(img, percentInpaint=50).sprialBiharmonic()
-
