@@ -25,7 +25,11 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
-
+def saveAllFigs(params, img, mask, image_defect, image_result):
+    cv2.imwrite('C:/Users/shawn/Downloads/CCEM data/INPAINTING/Outputs/original_' + str(params) + '.png', img)
+    #cv2.imwrite('C:/Users/shawn/Downloads/CCEM data/INPAINTING/Outputs/mask_' + str(params) + '.png', mask)
+    cv2.imwrite('C:/Users/shawn/Downloads/CCEM data/INPAINTING/Outputs/image_defect_' + str(params) + '.png', image_defect)
+    cv2.imwrite('C:/Users/shawn/Downloads/CCEM data/INPAINTING/Outputs/image_result_' + str(params) + '.png', image_result)
 def circleMaskImage(image):
     blank = np.zeros(image.shape)
     circled = cv2.circle(blank, (blank.shape[0] // 2, blank.shape[1] // 2), blank.shape[0] // 2, color=(255, 255, 255),
@@ -149,24 +153,27 @@ class spiralSparsity:
         return x, y
 
     @staticmethod
-    def CLV(frequency, width, height, maskType, totalPoints, shiftAmount):
-        # x = np.zeroes(totalPoints)
-        # y = np.zeroes(totalPoints)
-        # for i in range(0, totalPoints):
-        #     sq = np.sqrt(i)
-        #     x[i] = int(sq * np.cos(frequency * sq))
-        #     y[i] = int(sq * np.sin(frequency * sq))
-        # return x, y
-        mask = np.ones((width, height),  dtype=maskType)
-        for i in range(totalPoints):
+    def CLV(t, length, frequency = 1):
+        x = []
+        y = []
+        for i in range(0, t):
             sq = np.sqrt(i)
-            x = int(sq * np.cos(frequency * sq)) + shiftAmount
-            y = int(sq * np.sin(frequency * sq)) + shiftAmount
-            mask[x][y] = 0
-        return mask
+            x.append(int(sq * np.cos(frequency * sq)))
+            y.append(int(sq * np.sin(frequency * sq)))
+
+        x = np.interp(x, [min(x), max(x)], [0, length - 1]).astype(int)
+        y = np.interp(y, [min(y), max(y)], [0, length - 1]).astype(int)
+        return x, y
+        # mask = np.ones((width, height),  dtype=maskType)
+        # for i in range(totalPoints):
+        #     sq = np.sqrt(i)
+        #     x = min(int(sq * np.cos(frequency * sq)) + shiftAmount, width - 1)
+        #     y = min(int(sq * np.sin(frequency * sq)) + shiftAmount, height - 1)
+        #     mask[x][y] = 0
+        # return mask
 
     @staticmethod
-    def CLVmask(img, frequency = 1.16, format='algorithm'):
+    def CLVmask(img, percentInpaint, format='algorithm'):
         if format == 'algorithm':
             width, height = img.shape
         if format == 'biharmonic':
@@ -183,23 +190,46 @@ class spiralSparsity:
             # plt.show()
         circleArea = math.pi * (width / 2) ** 2
 
-        t = int(width**2/4)
+        percentRemoved = 100 - percentInpaint
         # Dose will be measured as a fraction of the total pixel points.
         # Though some pixels are sampled more than once, the dose should be evenly distributed throughout the sample.
         # i.e. dose on the sample is linear but measurements are not even across all detector points.
-        mask = spiralSparsity.CLV(frequency=frequency, width = width, height = height, maskType= np.uint8 if format == 'algorithm' else bool, totalPoints=t, shiftAmount= width // 2)
+        if percentRemoved == 20:
+            t = int(math.pi * (width / 2) ** 2 / 2.6)
+        elif percentRemoved == 50:
+            t = int(math.pi * (width / 2) ** 2 / 0.46)
+        elif percentRemoved == 80:
+            t = int(math.pi * (width / 2) ** 2 / 0.19)
+        else:
+            assert(False)
 
-       # unique_points, duplicate_points = checkYXduplicates(x, y)
-        percent_inpainted = None #round(100 - unique_points/circleArea*100)
+        x, y = spiralSparsity.CLV(t, length = width)
+
+
+        unique_points, duplicate_points = checkYXduplicates(x, y)
+        percent_inpainted = round(unique_points/circleArea*100)
+        # print(percent_inpainted)
         # TODO scans should not have gaps in path, update for more representative result.
 
-        # if format == 'algorithm':
-        #     mask = np.ones(img.shape, dtype=np.uint8) * mask # cv2 requires same dim array.
-        # elif format == 'biharmonic':
-        #     mask = np.ones(img.shape, dtype=bool) * mask
-        # else:
-        #     sys.exit("Provide a valid format to getRandomMask.")
+        def shift(l, shiftval):
+            return l
+            #return [i+shiftval for i in l]
+        shiftx = shift(x, width//2)
+        shifty = shift(y, width//2)
+
+        if format == 'algorithm':
+            mask = np.ones(img.shape, dtype=np.uint8) # cv2 requires same dim array.
+            for i in range(len(shiftx)):
+                mask[shiftx[i], shifty[i]] = 0
+        elif format == 'biharmonic':
+            mask = np.ones(img.shape[:-1], dtype=bool)
+            for i in range(len(shiftx)):
+                mask[shiftx[i]][shifty[i]] = False
+
+        else:
+            sys.exit("Provide a valid format to getRandomMask.")
 
         # print("Mask made successfully!")
+
 
         return mask, percent_inpainted

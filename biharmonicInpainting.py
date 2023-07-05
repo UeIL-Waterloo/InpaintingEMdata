@@ -26,28 +26,39 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.restoration import inpaint
 from sparsity import *
-
+from skimage import img_as_ubyte
 
 class Biharmonic:
-    def __init__(self, img, percentInpaint):
+    def __init__(self, img, percentInpaint, imgName):
         self.img = img
         self.percentInpaint = percentInpaint
+        self.imgName = imgName
 
-    def randomInpaint(self, mask=None, show=True):
-        if not mask:
-            mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='biharmonic')
+
+    def randomInpaint(self, show=True):
+        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='biharmonic')
         image_defect = self.img * ~mask[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
+
+        image_resultgray = img_as_ubyte(image_result)
+
+        saveAllFigs(self.imgName + '_biharmonic_random_' + str(self.percentInpaint), self.img, mask, image_defect, image_resultgray)
+
         if show:
             showInpainting(self.img, mask, image_defect, image_result, name='random_biharmonic')
 
         return image_result
 
     def spiralInpaint(self, show=True):
-        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='biharmonic')
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, percentInpaint=self.percentInpaint, format='biharmonic')
         image_defect = self.img * np.invert(mask)[..., np.newaxis]
         image_result = inpaint.inpaint_biharmonic(image_defect, mask, channel_axis=-1)
+
+        image_resultgray = img_as_ubyte(image_result)
+
+        saveAllFigs(self.imgName + '_biharmonic_spiral_' + str(self.percentInpaint), self.img, mask, image_defect, image_resultgray)
+
         if show:
-            showInpainting(circleMaskImage(self.img), mask, image_defect, circleMaskImage(image_result), name='spiral_biharmonic')
+            showInpainting(self.img, mask, image_defect, circleMaskImage(image_result), name='spiral_biharmonic')
 
         return image_result

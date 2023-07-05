@@ -33,15 +33,17 @@ from sparsity import *
 # INPAINT_TELEA = Use the algorithm proposed by Alexandru Telea [209]
 
 class Algorithm:
-    def __init__(self, img, percentInpaint):
+    def __init__(self, img, percentInpaint, imgName):
         self.img = img
         self.percentInpaint = percentInpaint
+        self.imgName = imgName
 
-    def randomInpaint(self, mask=None, show=True):
-        if not mask:
-            mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='algorithm')
+    def randomInpaint(self, show=True):
+        mask = randomSparsity.getRandomMask(self.img, fracPixels=self.percentInpaint, format='algorithm')
         image_defect = self.img * (1 - mask)
         image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
+
+        saveAllFigs(self.imgName + '_algorithm_random_' + str(self.percentInpaint), self.img, mask, image_defect, image_result)
 
         if show:
             showInpainting(self.img, mask, image_defect, image_result, name='random_algorithm')
@@ -49,11 +51,13 @@ class Algorithm:
         return image_result
 
     def spiralInpaint(self, show=True):
-        mask, percentInpainted = spiralSparsity.CLVmask(self.img, format='algorithm')
+        mask, percentInpainted = spiralSparsity.CLVmask(self.img, percentInpaint=self.percentInpaint,  format='algorithm')
         image_defect = self.img * (1 - mask)
         image_result = cv2.inpaint(image_defect, mask, 1, cv2.INPAINT_TELEA)
 
+        saveAllFigs(self.imgName + '_algorithm_spiral_' + str(self.percentInpaint), self.img, mask, image_defect, image_result)
+
         if show:
-            showInpainting(circleMaskImage(self.img), mask, image_defect, circleMaskImage(image_result), name='spiral_algorithm')
+            showInpainting(self.img, mask, image_defect, circleMaskImage(image_result), name='spiral_algorithm')
 
         return image_result

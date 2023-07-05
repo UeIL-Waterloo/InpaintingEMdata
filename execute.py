@@ -9,6 +9,7 @@ from skimage import color, io
 import tkinter as tk
 from tkinter import filedialog as fd
 import cv2
+from threading import Thread
 
 
 def mse(imageA, imageB, mask=None):
@@ -24,42 +25,42 @@ def mse(imageA, imageB, mask=None):
     # return the MSE, the lower the error, the more "similar" the two images are
     return err
 
+
 def pass2D(img):
     if len(img.shape) > 2:
         return color.rgb2gray(img)
     else:
         return img
 
+
 class Inpaint:
     def __init__(self, fullFilePath: str, resize: float = 0):
         self.image = cv2.imread(fullFilePath)
         if resize:
-            self.image = cv2.resize(self.image , (int(self.image .shape[0] * resize), int(self.image .shape[1] * resize)))
+            self.image = cv2.resize(self.image, (int(self.image.shape[0] * resize), int(self.image.shape[1] * resize)))
         self.fileName = os.path.splitext(os.path.basename(fullFilePath))[0]
         self.filePath = os.path.dirname(fullFilePath)
 
-    def inpaint(self, percent: int, iType: str, mask: str, show=False):
+    def inpaint(self, percent: int, iType: str, masktype: str, show=False):
         if iType == 'algorithm':
             image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-            imageClass = Algorithm(image, percentInpaint=percent)
+            imageClass = Algorithm(image, percentInpaint=percent, imgName=self.fileName)
         elif iType == 'biharmonic':
-            imageClass = Biharmonic(self.image, percentInpaint=percent)
+            imageClass = Biharmonic(self.image, percentInpaint=percent, imgName=self.fileName)
         else:
             sys.exit("type given is not a valid option.")
 
-        if mask == 'random':
+        if masktype == 'random':
             inpainted_img = imageClass.randomInpaint(show=show)
-        elif mask == 'spiral':
+        elif masktype == 'spiral':
             inpainted_img = imageClass.spiralInpaint(show=show)
         else:
             sys.exit("mask given is not a valid option.")
 
-        self.image = pass2D(self.image)
-        inpainted_img = pass2D(inpainted_img)
-
-        meanSquardError = mse(self.image, inpainted_img, mask=mask)
-        # print('percent:', percent, iType, mask, 'mse:', meanSquardError)
+        meanSquardError = mse(pass2D(self.image), pass2D(inpainted_img), mask=masktype)
+        # print(percent, '%,', iType, ',', masktype, ',', meanSquardError)
         return meanSquardError
+
 
 class GUI:
     @staticmethod
@@ -73,32 +74,55 @@ class GUI:
         root.destroy()
         return paths
 
+
+class InpaintThread(Thread):
+    def __init__(self, img: Inpaint, percent: float, iType: str, masktype: str):
+        Thread.__init__(self)
+
+        # set a default value
+        self.img = img
+        self.percent = percent
+        self.iType = iType
+        self.masktype = masktype
+        self.mse = 0
+
+    def run(self):
+        self.mse = self.img.inpaint(self.percent, self.iType, self.masktype, show=False)
+
+    def waitForCompletionAndPrintResult(self):
+        # Wait for the thread to finish.
+        self.join()
+        print(self.img.fileName + ":", self.percent, '%,', self.iType, ',', self.masktype, ',', self.mse)
+
+        name =  str(self.img.fileName) + '_' + str(self.percent) + '_' + str(self.iType) + '_' + str(self.masktype)
+        try:
+            with open('C:/Users/shawn/Downloads/CCEM data/INPAINTING/Outputs/'+ str(name)+'.txt', 'w') as f:
+                f.write(str(self.percent) + '% , ' + str(self.iType) + ' , ' + str(self.masktype) + ' , ' + str(self.mse))
+        except:
+            print('did not output txt')
+
+
 if __name__ == '__main__':
     # Import file with tkinter selection.
     fullFilePaths = GUI.select_files()
 
     for file in fullFilePaths:
-        percent = 20
-        resize = 0.5
-        resize_list = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7 ,0.8, 0.9, 1]
-        #resize_list = [0.1]
-        algo_rand = []
-        algo_spir = []
-        biha_rand = []
-        biha_spir = []
-        for i in resize_list:
-            print(i)
-            algo_rand.append(Inpaint(file, resize=i).inpaint(percent, 'algorithm', 'random', show=False))
-            algo_spir.append(Inpaint(file, resize=i).inpaint(percent, 'algorithm', 'spiral', show=False))
-            biha_rand.append(Inpaint(file, resize=i).inpaint(percent, 'biharmonic', 'random', show=False))
-            biha_spir.append(Inpaint(file, resize=i).inpaint(percent, 'biharmonic', 'spiral', show=False))
+        print(file)
+        img = Inpaint(file, resize=1)
 
-        plt.plot(resize_list, algo_rand, label = 'algo_rand')
-        plt.plot(resize_list, algo_spir, label = 'algo_spir')
-        plt.plot(resize_list, biha_rand, label = 'biha_rand')
-        plt.plot(resize_list, biha_spir, label = 'biha_spir')
-        plt.ylabel("Mean Squared Error")
-        plt.xlabel("Resize value")
-        plt.legend()
-        plt.show()
+        threads = []
 
+        percents = [20, 50, 80]
+        algTypes = ['algorithm', 'biharmonic']
+        maskTypes = ['random', 'spiral']
+
+
+        for percent in percents:
+            for algType in algTypes:
+                for maskType in maskTypes:
+                    threads.append(InpaintThread(img, percent, algType, maskType))
+                    threads[-1].start()
+                    #threads[-1].waitForCompletionAndPrintResult()
+
+        for thread in threads:
+            thread.waitForCompletionAndPrintResult()
